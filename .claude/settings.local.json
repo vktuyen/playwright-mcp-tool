@@ -1,0 +1,32 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm init *)",
+      "Bash(bun --version)",
+      "Bash(pip3 --version)",
+      "Bash(brew install *)",
+      "Bash(npm search *)",
+      "Bash(npm view *)",
+      "WebSearch",
+      "WebFetch(domain:github.com)",
+      "Bash(npm --version)",
+      "Bash(npm install *)",
+      "Bash(npx playwright *)",
+      "Bash(npm run *)",
+      "Bash(npx -y @playwright/mcp@latest --help)",
+      "mcp__playwright__browser_navigate",
+      "mcp__playwright__browser_snapshot",
+      "mcp__playwright__browser_click",
+      "mcp__playwright__browser_type",
+      "mcp__playwright__browser_take_screenshot",
+      "mcp__playwright__browser_wait_for",
+      "Bash(unzip -l /Users/tuyenv/WorkingRepos/Paywright-MCP/downloads/Ticket-data.zip)",
+      "Bash(npm uninstall *)",
+      "Bash(unzip *)"
+    ]
+  },
+  "enableAllProjectMcpServers": true,
+  "enabledMcpjsonServers": [
+    "playwright"
+  ]
+}

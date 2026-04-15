@@ -1,0 +1,8 @@
+{
+  "name": "paywright-mcp",
+  "version": "1.0.0",
+  "description": "Claude MCP agent for collecting and analyzing customer support tickets from TrackerGo",
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
+}
