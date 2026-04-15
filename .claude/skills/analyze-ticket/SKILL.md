@@ -1,3 +1,8 @@
+---
+name: analyze-ticket
+description: Analyze a previously collected TrackerGo ticket and produce a root cause analysis. Use when the user wants to investigate, debug, or find the root cause of a ticket whose data has already been collected (a tickets/<id>-*/ticket-data.json file exists). Reads the structured data, identifies technical clues, formulates root cause hypotheses, and writes an investigation plan with source code targets and DB queries to tickets/<id>-*/analysis.md.
+---
+
 # Analyze Ticket — Root Cause Investigation
 
 You are analyzing a collected TrackerGo support ticket to identify the root cause and propose a solution.

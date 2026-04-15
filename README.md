@@ -1,15 +1,35 @@
 # Paywright-MCP
 
-Claude Code + Playwright MCP agent for collecting customer support ticket data from [TrackerGo](https://trackergo.joblogic.com). Navigates ticket pages, extracts all information, downloads attachments (DB backups, videos, logs), and produces root cause analysis.
+Claude Code + Playwright MCP agent for collecting and analyzing customer support tickets from [TrackerGo](https://trackergo.joblogic.com). Navigates ticket pages, extracts all information, downloads attachments (DB backups, videos, logs), and produces root cause analysis — all from a single command.
+
+## Quick Start
+
+Open Claude Code in this directory and run:
+
+```
+/investigate-ticket https://trackergo.joblogic.com/Task/Detail/555718
+```
+
+That's it. Claude will:
+1. Open a browser, log you into TrackerGo (Azure SSO + MFA the first time)
+2. Collect everything from the ticket — header, notes, checklists, attachments
+3. Analyze the issue and produce a root cause report
+
+Output lands in `tickets/<id>-<date>/` (data, screenshot, attachments, analysis.md).
+
+> Tip: you can also just say *"Hey Claude, investigate https://trackergo.joblogic.com/Task/Detail/555718"* — no slash command needed. The skill auto-triggers when it sees a TrackerGo URL.
 
 ## How It Works
 
-Claude Code uses the [Playwright MCP server](https://github.com/microsoft/playwright-mcp) to control a real browser. Two custom skills (slash commands) handle the workflow:
+Claude Code uses the [Playwright MCP server](https://github.com/microsoft/playwright-mcp) to control a real browser. Three custom skills handle the workflow:
 
-- **`/collect-ticket <url>`** — Navigates to the ticket, extracts all data, downloads attachments
-- **`/analyze-ticket <id>`** — Reads collected data, produces root cause analysis
+| Skill | Purpose |
+|---|---|
+| **`/investigate-ticket <url>`** | **(recommended)** End-to-end: collects data + analyzes the issue in one go |
+| `/collect-ticket <url>` | Just collect data, save to `tickets/<id>-<date>/ticket-data.json` |
+| `/analyze-ticket <id>` | Just analyze previously-collected data, save to `analysis.md` |
 
-There is no custom code. Claude reads the skill instructions and uses MCP browser tools (`browser_navigate`, `browser_click`, `browser_snapshot`) to interact with the page, plus standard tools (`Bash`, `Write`) for file operations.
+The skills live in `.claude/skills/<name>/SKILL.md` (proper Claude Code agent skills with YAML frontmatter and auto-discovery). There is no custom code — Claude reads the SKILL.md instructions and uses MCP browser tools (`browser_navigate`, `browser_click`, `browser_snapshot`) plus standard tools (`Bash`, `Write`) to do the work.
 
 ## Prerequisites
 
@@ -19,59 +39,64 @@ There is no custom code. Claude reads the skill instructions and uses MCP browse
 ## Setup
 
 ```bash
-# Install Playwright browser (Chromium) — one-time
+# 1. Install the Playwright browser (Chromium) — one-time
 npx playwright install chromium
 
-# Optional: store credentials so Claude can auto-fill the login form when sessions expire
+# 2. Copy the .env template and fill in your credentials
 cp .env.example .env
-# then edit .env with your TrackerGo email + password
 ```
 
-The `.mcp.json` configures the Playwright MCP server automatically when you open Claude Code in this directory. The `.env` file is optional — without it, you'll need to type your credentials directly into the browser window when prompted.
+Edit `.env` and add:
+- `TRACKERGO_EMAIL` — your Microsoft account email
+- `TRACKERGO_PASSWORD` — your Microsoft account password
+
+That's it. The `.mcp.json` configures the Playwright MCP server automatically when you open Claude Code in this directory.
+
+### Why isn't 2FA fully automated?
+
+We tried. It's blocked by org policy.
+
+The plan was: add a TOTP secret to `.env` and let Claude generate 6-digit codes via `oathtool`, completing the Microsoft sign-in unattended. But the JobLogic Microsoft Entra tenant has the **Authentication Methods policy** restricted to **Microsoft Authenticator (push notifications) only**. Third-party software OATH tokens / "different authenticator app" are blocked at the tenant level — they don't appear as an option in <https://mysignins.microsoft.com/security-info>, so there's no Base32 secret to extract.
+
+**In practice this is fine:**
+- The browser session in `browser-data/` lasts **~8 hours** after you click "Yes" on "Stay signed in?"
+- So you only do MFA **once per workday**
+- When MFA is needed, Claude auto-fills email + password and just asks you to approve the push notification on your phone (~5 seconds)
+- The rest (collection + analysis + attachment downloads) happens fully unattended
+
+If JobLogic's IT policy ever changes and allows third-party authenticator apps, we can revisit.
 
 ## Usage
 
-### 1. Collect ticket data
+### One command (recommended)
 
 ```
-/collect-ticket https://trackergo.joblogic.com/Task/Detail/555718
+/investigate-ticket https://trackergo.joblogic.com/Task/Detail/555718
 ```
 
-On first run, Claude will navigate to TrackerGo and help you log in via Azure SSO + MFA. The browser session persists in `browser-data/` so you only log in once (~8 hours).
+This runs the full pipeline:
+1. **Collect** — navigates to the ticket, extracts everything (header, task details, client info, summary, all notes, checklists, attachments, screenshot)
+2. **Analyze** — reads the collected data and produces root cause analysis with investigation plan
+3. **Summary** — prints a concise overview with the top hypothesis and next steps
 
-The skill collects:
-- Ticket header (ID, title, status, priority, SLA)
-- Task details (owner, department, product, call type, etc.)
-- Client info (tenant ID, shard key, contacts)
-- AI-generated summary
-- All event notes (expanded full text)
-- Checklist form data (reproduce steps, device info, app version)
-- All attachments (downloaded)
-- Full-page screenshot
+You can also just say "Hey Claude, can you investigate https://trackergo.joblogic.com/Task/Detail/555718?" — Claude will pick up the right skill from the URL.
 
-Everything is saved to `tickets/<id>-<YYYYMMDD>/`.
-
-### 2. Analyze the issue
+### Or run phases individually
 
 ```
-/analyze-ticket 555718
+/collect-ticket https://trackergo.joblogic.com/Task/Detail/555718    # just collect
+/analyze-ticket 555718                                                # just analyze
 ```
-
-Reads the collected data and produces:
-- Issue summary (what/where/when/who/platform)
-- Technical clues from notes and checklists
-- Root cause hypotheses
-- Investigation plan (source code, DB queries, reproduction steps)
-
-Saved to `tickets/<id>-<YYYYMMDD>/analysis.md`.
 
 ### Login Flow (Azure AD SSO)
 
-1. Navigate to trackergo.joblogic.com → "Login with Azure" button
-2. Redirects to Microsoft login → Enter email → Enter password
-3. Approve MFA in Authenticator app (enter the displayed number)
-4. "Stay signed in?" → Yes
-5. Redirected back to TrackerGo dashboard
+On first run (or when the session expires after ~8 hours):
+
+1. Claude navigates to TrackerGo and clicks "Login with Azure"
+2. **Email + password** — auto-filled from `.env`
+3. **MFA** — Claude shows you the push-notification number, you approve in Microsoft Authenticator on your phone
+4. Click "Yes" on "Stay signed in?" — Claude does this automatically
+5. Browser session is saved to `browser-data/` for ~8 hours
 
 ## Output Structure
 
@@ -97,17 +122,18 @@ tickets/555718-20260415/
 
 ```
 Paywright-MCP/
-├── .mcp.json                    # Playwright MCP server config
-├── .claude/commands/
-│   ├── collect-ticket.md        # /collect-ticket skill
-│   └── analyze-ticket.md        # /analyze-ticket skill
-├── CLAUDE.md                    # Project context for Claude
-├── tickets/                     # Per-ticket output (gitignored)
+├── .mcp.json                              # Playwright MCP server config
+├── .claude/skills/
+│   ├── investigate-ticket/SKILL.md        # /investigate-ticket — umbrella
+│   ├── collect-ticket/SKILL.md            # /collect-ticket — data collection
+│   └── analyze-ticket/SKILL.md            # /analyze-ticket — root cause
+├── CLAUDE.md                              # Project context for Claude
+├── tickets/                               # Per-ticket output (gitignored)
 │   └── <id>-<YYYYMMDD>/
 │       ├── ticket-data.json
 │       ├── screenshot.png
 │       ├── analysis.md
 │       └── attachments/
-├── browser-data/                # Persistent browser profile (gitignored)
-└── .mcp-output/                 # Temp MCP artifacts (auto-cleaned)
+├── browser-data/                          # Persistent browser profile (gitignored)
+└── .mcp-output/                           # Temp MCP artifacts (auto-cleaned)
 ```

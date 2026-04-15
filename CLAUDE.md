@@ -4,19 +4,31 @@ Claude Code + Playwright MCP agent for collecting customer support ticket data f
 
 ## Architecture
 
-Claude uses the `@playwright/mcp` server (configured in `.mcp.json`) to control a real Chromium browser. No custom code — just MCP browser tools and two Claude skills:
+Claude uses the `@playwright/mcp` server (configured in `.mcp.json`) to control a real Chromium browser. No custom code — just MCP browser tools and three Claude agent skills:
 
+- `/investigate-ticket <url>` — **Umbrella skill (recommended)**: runs collect + analyze in one go
 - `/collect-ticket <url>` — Navigates ticket page, extracts all data, downloads attachments
 - `/analyze-ticket <id>` — Reads collected data, produces root cause analysis
+
+Skills live at `.claude/skills/<name>/SKILL.md` (proper agent-skill format with YAML frontmatter and auto-discovery). Each has a `description` so Claude can also auto-invoke them when it sees a TrackerGo URL in the conversation — no slash command required.
 
 ## Login Flow (TrackerGo + Azure AD)
 1. Navigate to trackergo.joblogic.com → redirects to `/Account/Login`
 2. Click "Login with Azure" button
 3. Redirects to `login.microsoftonline.com` (Azure AD)
-4. Enter email → Enter password → Approve MFA (Authenticator app, enter number)
-5. "Stay signed in?" → Yes
-6. Redirects back to TrackerGo dashboard
-7. Session persists in `browser-data/` (~8 hours)
+4. Email + password (auto-filled from `.env`)
+5. **MFA — push notification only**: ask user to approve number in Microsoft Authenticator on their phone
+6. "Stay signed in?" → Yes
+7. Redirects back to TrackerGo dashboard
+8. Session persists in `browser-data/` (~8 hours)
+
+### Why no TOTP automation?
+We tried — it's blocked by the JobLogic Microsoft Entra Authentication Methods policy, which only permits Microsoft Authenticator push (no third-party software OATH tokens). The "different authenticator app" option doesn't appear in `https://mysignins.microsoft.com/security-info`. So 2FA stays manual; everything else is automated.
+
+## Credentials (`.env`)
+- `TRACKERGO_EMAIL` — Microsoft account email
+- `TRACKERGO_PASSWORD` — Microsoft account password
+- File is gitignored. Read with `set -a; source .env; set +a` so vars are available to subprocesses.
 
 ## Ticket Page Data Model
 A TrackerGo ticket (`/Task/Detail/<id>`) contains:
@@ -56,7 +68,7 @@ A TrackerGo ticket (`/Task/Detail/<id>`) contains:
   - `screenshot.png` — Full-page screenshot
   - `attachments/` — Downloaded files (zips, DBs, videos)
   - `analysis.md` — Root cause analysis (created by /analyze-ticket)
-- `.claude/commands/` — Custom Claude skills
+- `.claude/skills/<name>/SKILL.md` — Custom Claude agent skills
 
 ## Workflow
 1. `/collect-ticket <ticket-url>` — Collect all ticket data (handles login if needed)

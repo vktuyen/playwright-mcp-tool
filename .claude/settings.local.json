@@ -22,7 +22,18 @@
       "mcp__playwright__browser_wait_for",
       "Bash(unzip -l /Users/tuyenv/WorkingRepos/Paywright-MCP/downloads/Ticket-data.zip)",
       "Bash(npm uninstall *)",
-      "Bash(unzip *)"
+      "Bash(unzip *)",
+      "Bash(oathtool *)",
+      "Bash(zbarimg --quiet --raw /Users/tuyenv/.claude/image-cache/4a4d2f55-1688-4d07-aca1-d8eb3069c630/9.png)",
+      "Read(//tmp/**)",
+      "Bash(curl -sL \"https://docs.claude.com/en/docs/claude-code/skills\")",
+      "Bash(curl -sL \"https://docs.anthropic.com/en/docs/agents-and-tools/agent-skills/overview\")",
+      "WebFetch(domain:docs.claude.com)",
+      "Bash(mv .claude/commands/collect-ticket.md .claude/skills/collect-ticket/SKILL.md)",
+      "Bash(mv .claude/commands/analyze-ticket.md .claude/skills/analyze-ticket/SKILL.md)",
+      "Bash(mv .claude/commands/investigate-ticket.md .claude/skills/investigate-ticket/SKILL.md)",
+      "Bash(rmdir .claude/commands)",
+      "Bash(grep -A 60 \"Client Info$\\\\|generic \\\\[ref=e508\\\\]\" /Users/tuyenv/WorkingRepos/Paywright-MCP/.mcp-output/page-2026-04-15T07-51-28-396Z.yml)"
     ]
   },
   "enableAllProjectMcpServers": true,

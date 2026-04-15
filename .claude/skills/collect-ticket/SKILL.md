@@ -1,3 +1,8 @@
+---
+name: collect-ticket
+description: Collect all data from a TrackerGo customer support ticket. Use when the user provides a TrackerGo URL (https://trackergo.joblogic.com/Task/Detail/<id>) or asks to scrape, gather, or download data from a support ticket. Navigates the ticket page via Playwright MCP, extracts header, task details, client info, all event notes (expanded), checklist forms, and downloads all attachments (DB backups, videos, logs). Saves everything to tickets/<id>-<YYYYMMDD>/.
+---
+
 # Collect Ticket Data from TrackerGo
 
 You are collecting data from a TrackerGo support ticket using Playwright MCP browser tools.
@@ -28,21 +33,29 @@ Create the directory at the start: `mkdir -p tickets/<ticketId>-<YYYYMMDD>/attac
 ## Login Flow (when session expires)
 If `browser_navigate` to a ticket URL redirects to `/Account/Login` or `login.microsoftonline.com`, the session has expired. Re-authenticate:
 
-1. Read credentials from `.env` if it exists:
-   ```bash
-   cat .env 2>/dev/null
-   ```
-   Look for `TRACKERGO_EMAIL` and `TRACKERGO_PASSWORD`. **NEVER print the password to the user.**
+### Reading credentials from .env
+```bash
+set -a; source .env 2>/dev/null; set +a
+```
+This loads `TRACKERGO_EMAIL` and `TRACKERGO_PASSWORD` as env vars.
+**NEVER print the password to the user.** When typing into the browser, use `browser_type` directly.
 
-2. Navigate to `https://trackergo.joblogic.com`
-3. Click the "Login with Azure" button
-4. On the Microsoft SSO page:
-   - If `.env` has credentials, use `browser_type` to fill in the email field, then click Next
-   - Then `browser_type` the password, click Sign in
-   - If `.env` is missing, ask the user to type their credentials directly into the browser
-5. Wait for the MFA prompt → ask the user to approve in their Authenticator app and report back when done
-6. On "Stay signed in?" → click Yes
-7. Verify the URL is back on `trackergo.joblogic.com/` (not `/Account/Login`)
+### Steps
+
+1. Navigate to `https://trackergo.joblogic.com`
+2. Click the "Login with Azure" button
+3. On the Microsoft SSO email page:
+   - If `.env` has `TRACKERGO_EMAIL`, use `browser_type` to fill the email field → click Next
+   - Otherwise ask the user to type it in the browser
+4. On the password page:
+   - If `.env` has `TRACKERGO_PASSWORD`, use `browser_type` to fill the password field → click Sign in
+   - Otherwise ask the user to type it in the browser
+5. **MFA step** (push notification — TOTP automation is not possible because the org's Authentication Methods policy only allows Microsoft Authenticator push, no third-party software OATH tokens):
+   a. The page shows "Approve sign in request" with a number (e.g., "91")
+   b. Tell the user the number clearly: *"Please approve the Microsoft Authenticator request on your phone — enter number **91**"*
+   c. Wait for the user to confirm they approved
+6. On "Stay signed in?" → click **Yes** (this extends the browser session)
+7. Verify the URL is back on `trackergo.joblogic.com/` (not `/Account/Login` or `login.microsoftonline.com`)
 8. Then navigate to the original ticket URL and continue
 
 ## Collection Steps
